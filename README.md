@@ -254,15 +254,62 @@ This deployment uses [docker-nginx-certbot](https://github.com/JonasAlfredsson/d
 
 Certificates automatically renew when they have less than 30 days remaining. The container checks every 8 days.
 
-**Manual renewal:**
+**How it works:**
+- Let's Encrypt certificates are valid for **90 days**
+- Auto-renewal triggers when **30 days** remain
+- nginx-certbot container checks every **8 days**
+- Nginx automatically reloads after successful renewal
+
+**Verify certificate expiration:**
 ```bash
-docker exec nginx_guacamole_compose certbot renew
+# Check when your certificate expires
+docker exec nginx_guacamole_compose openssl x509 \
+  -in /etc/letsencrypt/live/your-domain.com/cert.pem \
+  -noout -enddate
+
+# Alternative: View full certificate details
+docker exec nginx_guacamole_compose certbot certificates
 ```
 
-**Force reload nginx:**
+**Check renewal logs:**
 ```bash
+# View certbot renewal activity
+docker logs nginx_guacamole_compose | grep -i renew
+
+# View full container logs
+docker logs nginx_guacamole_compose
+```
+
+**Test renewal process (dry-run):**
+```bash
+# Safe test - doesn't actually renew
+docker exec nginx_guacamole_compose certbot renew --dry-run
+```
+
+**Manual renewal (if needed):**
+```bash
+# Force renewal
+docker exec nginx_guacamole_compose certbot renew
+
+# Reload nginx to use new certificate
 docker kill --signal=HUP nginx_guacamole_compose
 ```
+
+**Troubleshooting renewal failures:**
+
+If renewal fails, check:
+1. **Ports 80 and 443 are accessible** from the internet
+2. **DNS is correctly configured** and propagated
+3. **Docker container is running**: `docker ps | grep nginx`
+4. **Disk space is available**: `df -h`
+5. **Check error logs**: `docker logs nginx_guacamole_compose`
+
+Common issues:
+- Firewall blocking ports 80/443
+- DNS changes not yet propagated
+- Rate limiting (5 failures per hour per domain)
+- Container crashed or stopped
+
 
 ## 🔒 Security Considerations
 
