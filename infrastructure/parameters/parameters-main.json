@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "sshPublicKey": {
+      "value": "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY"
+    },
+    "sshSourceIp": {
+      "value": "REPLACE_WITH_YOUR_IP"
+    },
+    "adminUsername": {
+      "value": "pawadmin"
+    },
+    "vmSize": {
+      "value": "Standard_B2s"
+    },
+    "environment": {
+      "value": "prd"
+    },
+    "customDomain": {
+      "value": "paw.vorlichmedia.com"
+    },
+    "ukOriginHostname": {
+      "value": "paw.vorlichmedia.com"
+    },
+    "canadaOriginHostname": {
+      "value": "paw-ca.vorlichmedia.com"
+    },
+    "frontDoorName": {
+      "value": "guacamole-frontdoor"
+    }
+  }
+}

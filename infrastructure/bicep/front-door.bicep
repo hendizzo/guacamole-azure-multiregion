@@ -1,5 +1,11 @@
 // Azure Front Door Infrastructure
 // This template creates the Azure Front Door for global load balancing
+// 
+// PREREQUISITES:
+// 1. Regional VMs must be deployed and running
+// 2. DNS A records must be configured and propagated
+// 3. Guacamole must be installed and responding on HTTPS
+// 4. Origins must be accessible via their hostnames
 
 @description('Front Door name')
 param frontDoorName string = 'guacamole-frontdoor'
