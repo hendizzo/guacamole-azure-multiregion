@@ -123,13 +123,38 @@ if ! is_step_complete "prerequisites"; then
 
     # Check Azure CLI login
     if ! az account show &> /dev/null 2>&1; then
-        error_exit "Not logged into Azure. Run: az login"
+        warn "Not logged into Azure"
+        info "Opening browser for Azure authentication..."
+        if ! az login >> "${LOG_FILE}" 2>&1; then
+            error_exit "Azure login failed or was cancelled"
+        fi
+        success "Successfully logged into Azure"
+    else
+        success "Already logged into Azure"
     fi
     
     SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
     SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-    success "Logged into Azure"
     info "Subscription: ${SUBSCRIPTION_NAME} (${SUBSCRIPTION_ID})"
+    
+    # If multiple subscriptions, allow selection
+    SUBSCRIPTION_COUNT=$(az account list --query "length([])" -o tsv)
+    if [ "${SUBSCRIPTION_COUNT}" -gt 1 ]; then
+        warn "You have ${SUBSCRIPTION_COUNT} subscriptions"
+        read -p "Use current subscription (${SUBSCRIPTION_NAME})? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Available subscriptions:"
+            az account list --output table
+            read -p "Enter subscription ID or name to use: " SELECTED_SUB
+            if ! az account set --subscription "${SELECTED_SUB}" 2>> "${LOG_FILE}"; then
+                error_exit "Failed to set subscription"
+            fi
+            SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
+            SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+            success "Switched to subscription: ${SUBSCRIPTION_NAME}"
+        fi
+    fi
 
     # Check jq for JSON parsing
     if ! command -v jq &> /dev/null; then
