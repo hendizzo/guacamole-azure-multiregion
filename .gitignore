@@ -1,0 +1,49 @@
+# Git repository files to ignore
+
+# Azure deployment outputs
+*.log
+deployment-outputs.json
+
+# Bicep compiled files
+*.json.tmp
+
+# Environment files with secrets
+.env
+*.env.local
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+*.pub
+
+# Database backups
+*.sql
+backup/
+
+# Terraform/ARM templates (if used alongside)
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker volumes
+postgres_data/
+certbot_etc/
+certbot_var/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
