@@ -488,81 +488,163 @@ if ($state.step -lt 6) {
     Write-Host "Step 5: Deploying Azure Front Door" -ForegroundColor Yellow
     Write-Host "==========================================" -ForegroundColor Cyan
 
-    Write-Log "Creating Front Door resource group..." Yellow
-    az group create --name RG-Global-PAW-Core --location $($state.regions[0].code) | Out-File -Append $LogFile
-
+    # Use first region's resource group for Front Door
+    $frontdoorRG = $state.regions[0].resourceGroup
+    Write-Log "Creating Front Door in resource group: $frontdoorRG" Yellow
     Write-Log "Creating Front Door with $($state.regions.Count) origins (5-10 minutes)..." Yellow
     
     # Create Front Door profile
+    Write-Log "  Creating Front Door profile..." Gray
     az afd profile create `
         --profile-name guacamole-frontdoor `
-        --resource-group RG-Global-PAW-Core `
+        --resource-group $frontdoorRG `
         --sku Standard_AzureFrontDoor | Out-File -Append $LogFile
     
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Failed to create Front Door profile" Red
+        exit 1
+    }
+    
     # Create endpoint
+    Write-Log "  Creating endpoint 'guacamole-global'..." Gray
     az afd endpoint create `
-        --resource-group RG-Global-PAW-Core `
+        --resource-group $frontdoorRG `
         --profile-name guacamole-frontdoor `
-        --endpoint-name guacamole-endpoint `
+        --endpoint-name guacamole-global `
         --enabled-state Enabled | Out-File -Append $LogFile
     
-    # Create origin group
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Failed to create endpoint" Red
+        exit 1
+    }
+    
+    # Create origin group with health probe for Guacamole
+    Write-Log "  Creating origin group with health probes..." Gray
     az afd origin-group create `
-        --resource-group RG-Global-PAW-Core `
+        --resource-group $frontdoorRG `
         --profile-name guacamole-frontdoor `
         --origin-group-name guacamole-origins `
-        --probe-request-type HEAD `
-        --probe-protocol Http `
+        --probe-request-type GET `
+        --probe-protocol Https `
         --probe-interval-in-seconds 30 `
-        --probe-path / `
+        --probe-path "/guacamole/" `
         --sample-size 4 `
         --successful-samples-required 3 `
         --additional-latency-in-milliseconds 50 | Out-File -Append $LogFile
     
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Failed to create origin group" Red
+        exit 1
+    }
+    
     # Add origins
     foreach ($region in $state.regions) {
-        Write-Log "Adding origin: $($region.name) ($($region.fqdn))" Cyan
+        Write-Log "  Adding origin: $($region.name) ($($region.fqdn))" Cyan
         az afd origin create `
-            --resource-group RG-Global-PAW-Core `
+            --resource-group $frontdoorRG `
             --profile-name guacamole-frontdoor `
             --origin-group-name guacamole-origins `
             --origin-name "$($region.short.ToLower())-origin" `
             --host-name $region.fqdn `
             --origin-host-header $region.fqdn `
             --priority 1 `
-            --weight 1000 `
+            --weight 33 `
             --enabled-state Enabled `
             --http-port 80 `
             --https-port 443 | Out-File -Append $LogFile
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Failed to add origin for $($region.name)" Red
+            exit 1
+        }
     }
     
     # Create route
-    Write-Log "Creating route..." Yellow
+    Write-Log "  Creating route..." Gray
     az afd route create `
-        --resource-group RG-Global-PAW-Core `
+        --resource-group $frontdoorRG `
         --profile-name guacamole-frontdoor `
-        --endpoint-name guacamole-endpoint `
+        --endpoint-name guacamole-global `
         --route-name guacamole-route `
         --origin-group guacamole-origins `
-        --supported-protocols Http Https `
+        --supported-protocols Https Http `
         --link-to-default-domain Enabled `
         --https-redirect Enabled `
         --forwarding-protocol HttpsOnly `
         --patterns-to-match "/*" | Out-File -Append $LogFile
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Log "Front Door deployment failed. Check $LogFile" Red
+        Write-Log "Failed to create route" Red
         exit 1
     }
 
     # Get Front Door endpoint
-    $fdEndpoint = az afd endpoint list --profile-name guacamole-frontdoor --resource-group RG-Global-PAW-Core --query "[0].hostName" -o tsv
+    $fdEndpoint = az afd endpoint list --profile-name guacamole-frontdoor --resource-group $frontdoorRG --query "[0].hostName" -o tsv
     $state.frontdoorEndpoint = $fdEndpoint
 
     Write-Log "" Green
     Write-Log "Front Door deployed successfully!" Green
-    Write-Log "  Endpoint: $fdEndpoint" White
+    Write-Log "  Endpoint: https://$fdEndpoint/guacamole/" White
     Write-Log "  Origins: $($state.regions.Count)" White
+    
+    # Prompt for custom domain
+    Write-Host "" -ForegroundColor Cyan
+    Write-Host "Optional: Configure Custom Domain" -ForegroundColor Cyan
+    Write-Host "==========================================" -ForegroundColor Cyan
+    $addCustomDomain = Read-Host "Do you want to add a custom domain to Front Door? (y/N)"
+    
+    if ($addCustomDomain -eq 'y') {
+        $customDomain = Read-Host "Enter custom domain (e.g., lab.$($state.domain))"
+        
+        Write-Host "" -ForegroundColor Yellow
+        Write-Host "IMPORTANT: Before continuing, add a DNS CNAME record:" -ForegroundColor Yellow
+        Write-Host "  Name:   $customDomain" -ForegroundColor White
+        Write-Host "  Type:   CNAME" -ForegroundColor White
+        Write-Host "  Target: $fdEndpoint" -ForegroundColor White
+        Write-Host "  Note:   If using Cloudflare, disable proxy (gray cloud)" -ForegroundColor Gray
+        Write-Host "" -ForegroundColor Yellow
+        $dnsConfirm = Read-Host "Have you added the CNAME record? (Y/n)"
+        
+        if ($dnsConfirm -ne 'n') {
+            Write-Log "Adding custom domain to Front Door..." Yellow
+            
+            $customDomainName = $customDomain -replace '\.','-'
+            
+            az afd custom-domain create `
+                --resource-group $frontdoorRG `
+                --profile-name guacamole-frontdoor `
+                --custom-domain-name $customDomainName `
+                --host-name $customDomain `
+                --minimum-tls-version TLS12 `
+                --certificate-type ManagedCertificate | Out-File -Append $LogFile
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "Custom domain added successfully" Green
+                
+                # Associate with route
+                Write-Log "Associating custom domain with route..." Yellow
+                az afd route update `
+                    --resource-group $frontdoorRG `
+                    --profile-name guacamole-frontdoor `
+                    --endpoint-name guacamole-global `
+                    --route-name guacamole-route `
+                    --custom-domains $customDomainName | Out-File -Append $LogFile
+                
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log "Custom domain associated with route" Green
+                    Write-Log "" Yellow
+                    Write-Log "SSL certificate provisioning takes 15-30 minutes" Yellow
+                    Write-Log "  Custom domain URL: https://$customDomain/guacamole/" White
+                    $state.customDomain = $customDomain
+                } else {
+                    Write-Log "Failed to associate custom domain with route" Red
+                }
+            } else {
+                Write-Log "Failed to add custom domain" Red
+                Write-Log "You can add it manually in Azure Portal later" Yellow
+            }
+        }
+    }
 
     $state.step = 6
     Save-State $state
@@ -577,8 +659,14 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host "" -ForegroundColor Cyan
 Write-Host "Access URLs:" -ForegroundColor Cyan
 Write-Host "  Front Door (Global): https://$($state.frontdoorEndpoint)/guacamole/" -ForegroundColor Green
+
+if ($state.customDomain) {
+    Write-Host "  Custom Domain:       https://$($state.customDomain)/guacamole/" -ForegroundColor Green
+    Write-Host "                       (SSL cert provisioning: 15-30 minutes)" -ForegroundColor Yellow
+}
+
 Write-Host "" -ForegroundColor White
-Write-Host "  Direct Access:" -ForegroundColor White
+Write-Host "  Direct Regional Access:" -ForegroundColor White
 foreach ($region in $state.regions) {
     Write-Host "    * $($region.name): https://$($region.fqdn)/guacamole/" -ForegroundColor Gray
 }
@@ -586,9 +674,10 @@ foreach ($region in $state.regions) {
 Write-Host "" -ForegroundColor Cyan
 Write-Host "Deployment Summary:" -ForegroundColor Cyan
 Write-Host "  Total Regions:  $($state.regions.Count)" -ForegroundColor White
-Write-Host "  Resource Groups: $($state.regions.Count + 1) (regions + Front Door)" -ForegroundColor White
+Write-Host "  Resource Groups: $($state.regions.Count)" -ForegroundColor White
 Write-Host "  Virtual Machines: $($state.regions.Count)" -ForegroundColor White
 Write-Host "  Front Door Origins: $($state.regions.Count)" -ForegroundColor White
+Write-Host "  Front Door Profile: guacamole-frontdoor (in $($state.regions[0].resourceGroup))" -ForegroundColor White
 
 Write-Host "" -ForegroundColor Cyan
 Write-Host "Default Login:" -ForegroundColor Cyan
