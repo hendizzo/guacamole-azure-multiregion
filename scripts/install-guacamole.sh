@@ -60,38 +60,52 @@ echo "Running prepare script..."
 chmod +x prepare.sh
 ./prepare.sh
 
-# Create .env file with domain
-echo "Configuring domain..."
-echo "DOMAIN=${DOMAIN}" > .env
+# Update docker-compose.yml with email
+echo "Configuring Let's Encrypt email..."
+sed -i "s/CERTBOT_EMAIL: your-email@example.com/CERTBOT_EMAIL: ${EMAIL}/" docker-compose.yml
 
-# Update domain in nginx template if needed
-if [ -f "nginx/templates/guacamole.conf.template" ]; then
-    echo "Domain will be configured via environment variable"
-fi
+# Update nginx configuration with domain
+echo "Configuring domain in nginx..."
+mkdir -p nginx/user_conf.d
+sed -i "s/your-domain\.com/${DOMAIN}/g" nginx/user_conf.d/guacamole.conf
 
-# Start services (without nginx first for certbot challenge)
+# Start services - nginx-certbot will automatically obtain SSL certificate
 echo "Starting Guacamole services..."
-docker compose up -d guacd postgres guacamole nginx
+echo "The nginx-certbot container will automatically obtain SSL certificate..."
+echo "This process takes 2-3 minutes..."
+docker compose up -d
 
-# Wait for services to be ready
+# Wait for all services to initialize
 echo "Waiting for services to start..."
-sleep 10
+sleep 30
 
-# Get SSL certificate
-echo "Obtaining SSL certificate..."
-docker compose run --rm certbot certonly --webroot \
-    --webroot-path=/var/www/certbot \
-    --email ${EMAIL} \
-    --agree-tos \
-    --no-eff-email \
-    -d ${DOMAIN}
+# Check container status
+echo "Checking service status..."
+docker compose ps
 
-# Restart nginx to load certificates
-echo "Restarting nginx with SSL..."
-docker compose restart nginx
+# Wait for SSL certificate acquisition
+echo "Waiting for Let's Encrypt SSL certificate acquisition (up to 2 minutes)..."
+for i in {1..24}; do
+    if docker compose logs nginx 2>&1 | grep -q "Certificate obtained"; then
+        echo "SSL certificate obtained successfully!"
+        break
+    elif docker compose logs nginx 2>&1 | grep -q "Cert not yet due for renewal"; then
+        echo "SSL certificate already exists and is valid!"
+        break
+    fi
+    sleep 5
+    echo "Still waiting for SSL certificate... ($((i*5)) seconds)"
+done
 
-# Start certbot renewal service
-docker compose up -d certbot
+# Final status check
+echo ""
+echo "Final service status:"
+docker compose ps
+
+# Show nginx logs for troubleshooting
+echo ""
+echo "Nginx/Certbot logs (last 20 lines):"
+docker compose logs --tail=20 nginx
 
 # Get the PostgreSQL password from prepare script output
 POSTGRES_PASSWORD=$(grep POSTGRES_PASSWORD .env 2>/dev/null | cut -d'=' -f2)

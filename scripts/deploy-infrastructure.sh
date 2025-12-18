@@ -468,8 +468,7 @@ if [ ! -d "guacamole-azure-multiregion" ]; then
     git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
 fi
 cd guacamole-azure-multiregion
-git checkout Multi-Region_With_FrontDoor
-git pull
+git pull origin main
 chmod +x scripts/install-guacamole.sh
 ./scripts/install-guacamole.sh paw.${DOMAIN} ${EMAIL}
 EOSSH
