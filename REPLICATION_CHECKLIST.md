@@ -14,8 +14,8 @@ Use this checklist to replicate the entire multi-region Guacamole infrastructure
 
 ## 📥 Repository Setup
 
-- [ ] Clone repository: `git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git`
-- [ ] Switch to branch: `git checkout Multi-Region_With_FrontDoor`
+- [ ] Clone repository: `git clone https://github.com/hendizzo/guacamole-azure-multiregion.git`
+- [ ] Switch to branch: `git checkout main`
 - [ ] Review README.md for overview
 - [ ] Review INFRASTRUCTURE.md for detailed architecture
 

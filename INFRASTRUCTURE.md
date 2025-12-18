@@ -44,14 +44,14 @@ This guide explains the multi-region deployment architecture using Azure Front D
 - **VNet**: 172.18.0.0/16
 - **Subnet**: 172.18.8.0/22 (guacamole)
 - **VM**: Standard_B2s, Ubuntu 22.04
-- **Domain**: paw.vorlichmedia.com (or your domain)
+- **Domain**: paw.example.com (or your domain)
 
 ### Canada Region (canadacentral)
 - **Resource Group**: RG-CA-PAW-Core
 - **VNet**: 172.19.0.0/16
 - **Subnet**: 172.19.8.0/22 (guacamole)
 - **VM**: Standard_B2s, Ubuntu 22.04
-- **Domain**: paw-ca.vorlichmedia.com (or your domain)
+- **Domain**: paw-ca.example.com (or your domain)
 
 ### Security
 - **NSG Rules**:
@@ -128,9 +128,9 @@ paw-ca.domain.com   → Canada VM Public IP
 ssh -i ~/.ssh/guacamole_key pawadmin@<UK-PUBLIC-IP>
 
 # Clone repository
-git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
-cd guacamole-letsencrypt-docker
-git checkout Multi-Region_With_FrontDoor
+git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
+cd guacamole-azure-multiregion
+git checkout main
 
 # Configure domain
 echo "DOMAIN=paw.domain.com" > .env

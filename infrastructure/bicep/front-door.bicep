@@ -17,13 +17,13 @@ param frontDoorName string = 'guacamole-frontdoor'
 ])
 param frontDoorSku string = 'Standard_AzureFrontDoor'
 
-@description('Custom domain name (e.g., paw.vorlichmedia.com)')
-param customDomain string = 'paw.vorlichmedia.com'
+@description('Custom domain name (e.g., paw.example.com)')
+param customDomain string = 'paw.example.com'
 
-@description('UK origin hostname (e.g., paw.vorlichmedia.com)')
+@description('UK origin hostname (e.g., paw.example.com)')
 param ukOriginHostname string
 
-@description('Canada origin hostname (e.g., paw-ca.vorlichmedia.com)')
+@description('Canada origin hostname (e.g., paw-ca.example.com)')
 param canadaOriginHostname string
 
 // Front Door Profile

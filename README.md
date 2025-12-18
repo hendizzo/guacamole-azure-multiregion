@@ -110,8 +110,8 @@ This deployment includes:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
-cd guacamole-letsencrypt-docker
+git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
+cd guacamole-azure-multiregion
 ```
 
 ### 2. Run Initial Setup

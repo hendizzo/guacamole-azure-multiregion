@@ -9,13 +9,13 @@
       "value": "Standard_AzureFrontDoor"
     },
     "customDomain": {
-      "value": "paw.vorlichmedia.com"
+      "value": "paw.example.com"
     },
     "ukOriginHostname": {
-      "value": "paw.vorlichmedia.com"
+      "value": "paw.example.com"
     },
     "canadaOriginHostname": {
-      "value": "paw-ca.vorlichmedia.com"
+      "value": "paw-ca.example.com"
     }
   }
 }

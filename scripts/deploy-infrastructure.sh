@@ -219,7 +219,7 @@ if ! is_step_complete "configuration"; then
     # Get domain
     if [ -z "${DOMAIN}" ]; then
         while true; do
-            read -p "Enter your domain (e.g., vorlichmedia.com): " DOMAIN
+            read -p "Enter your domain (e.g., example.com): " DOMAIN
             if [[ "${DOMAIN}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$ ]]; then
                 break
             else
@@ -464,10 +464,10 @@ if ! is_step_complete "uk_guacamole"; then
     if ! ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no pawadmin@${UK_IP} bash << EOSSH 2>&1 | tee -a "${LOG_FILE}"
 set -e
 cd ~
-if [ ! -d "guacamole-letsencrypt-docker" ]; then
-    git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
+if [ ! -d "guacamole-azure-multiregion" ]; then
+    git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
 fi
-cd guacamole-letsencrypt-docker
+cd guacamole-azure-multiregion
 git checkout Multi-Region_With_FrontDoor
 git pull
 chmod +x scripts/install-guacamole.sh
@@ -502,11 +502,10 @@ if ! is_step_complete "canada_guacamole"; then
     if ! ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no pawadmin@${CA_IP} bash << EOSSH 2>&1 | tee -a "${LOG_FILE}"
 set -e
 cd ~
-if [ ! -d "guacamole-letsencrypt-docker" ]; then
-    git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
+if [ ! -d "guacamole-azure-multiregion" ]; then
+    git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
 fi
-cd guacamole-letsencrypt-docker
-git checkout Multi-Region_With_FrontDoor
+cd guacamole-azure-multiregion
 git pull
 chmod +x scripts/install-guacamole.sh
 ./scripts/install-guacamole.sh paw-ca.${DOMAIN} ${EMAIL}
@@ -673,8 +672,8 @@ log ""
 log "${CYAN}Useful Commands:${NC}"
 log "  SSH to UK VM:      ssh -i ${SSH_KEY_PATH} pawadmin@${UK_IP}"
 log "  SSH to Canada VM:  ssh -i ${SSH_KEY_PATH} pawadmin@${CA_IP}"
-log "  View UK logs:      ssh -i ${SSH_KEY_PATH} pawadmin@${UK_IP} 'cd ~/guacamole-letsencrypt-docker && docker compose logs'"
-log "  View Canada logs:  ssh -i ${SSH_KEY_PATH} pawadmin@${CA_IP} 'cd ~/guacamole-letsencrypt-docker && docker compose logs'"
+log "  View UK logs:      ssh -i ${SSH_KEY_PATH} pawadmin@${UK_IP} 'cd ~/guacamole-azure-multiregion && docker compose logs'"
+log "  View Canada logs:  ssh -i ${SSH_KEY_PATH} pawadmin@${CA_IP} 'cd ~/guacamole-azure-multiregion && docker compose logs'"
 log ""
 log "${GREEN}Deployment log saved to: ${LOG_FILE}${NC}"
 log "${GREEN}Deployment state saved to: ${STATE_FILE}${NC}"

@@ -1,14 +1,14 @@
 #!/bin/bash
 # Guacamole Docker Installation Script
 # This script sets up Apache Guacamole with Docker Compose and Let's Encrypt SSL
-# Uses repository: https://github.com/hendizzo/guacamole-letsencrypt-docker.git
+# Uses repository: https://github.com/hendizzo/guacamole-azure-multiregion.git
 
 set -e
 
 # Configuration
-DOMAIN="${1:-paw.vorlichmedia.com}"
+DOMAIN="${1:-paw.example.com}"
 EMAIL="${2:-your-email@example.com}"
-REPO_URL="https://github.com/hendizzo/guacamole-letsencrypt-docker.git"
+REPO_URL="https://github.com/hendizzo/guacamole-azure-multiregion.git"
 
 echo "=========================================="
 echo "Guacamole Installation Script"
@@ -46,13 +46,13 @@ sudo usermod -aG docker $USER
 # Clone the repository
 echo "Cloning Guacamole repository..."
 cd ~
-if [ -d "guacamole-letsencrypt-docker" ]; then
+if [ -d "guacamole-azure-multiregion" ]; then
     echo "Repository already exists, updating..."
-    cd guacamole-letsencrypt-docker
+    cd guacamole-azure-multiregion
     git pull
 else
     git clone ${REPO_URL}
-    cd guacamole-letsencrypt-docker
+    cd guacamole-azure-multiregion
 fi
 
 # Run the prepare script

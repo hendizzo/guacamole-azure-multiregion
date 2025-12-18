@@ -35,7 +35,7 @@ param vmSize string = 'Standard_B2s'
 @description('Environment name')
 param environment string = 'prd'
 
-@description('Custom domain for Front Door (e.g., paw.vorlichmedia.com)')
+@description('Custom domain for Front Door (e.g., paw.example.com)')
 param customDomain string
 
 @description('UK origin hostname (must be DNS resolvable)')
@@ -124,14 +124,14 @@ DEPLOYMENT SUCCESSFUL! Next steps:
 
 2. Install Guacamole on UK VM:
    ssh -i ~/.ssh/your-key ${adminUsername}@${ukVm.outputs.publicIpAddress}
-   git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
-   cd guacamole-letsencrypt-docker && git checkout Multi-Region_With_FrontDoor
+   git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
+   cd guacamole-azure-multiregion && git checkout Multi-Region_With_FrontDoor
    ./scripts/install-guacamole.sh ${ukOriginHostname} your-email@example.com
 
 3. Install Guacamole on Canada VM:
    ssh -i ~/.ssh/your-key ${adminUsername}@${canadaVm.outputs.publicIpAddress}
-   git clone https://github.com/hendizzo/guacamole-letsencrypt-docker.git
-   cd guacamole-letsencrypt-docker && git checkout Multi-Region_With_FrontDoor
+   git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
+   cd guacamole-azure-multiregion && git checkout Multi-Region_With_FrontDoor
    ./scripts/install-guacamole.sh ${canadaOriginHostname} your-email@example.com
 
 4. Verify both sites respond:

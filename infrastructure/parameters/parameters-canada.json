@@ -21,7 +21,7 @@
       "value": "pawadmin"
     },
     "sshSourceIp": {
-      "value": "176.27.30.170"
+      "value": "0.0.0.0"
     },
     "environment": {
       "value": "prd"
