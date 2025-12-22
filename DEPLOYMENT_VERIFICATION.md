@@ -388,9 +388,9 @@ X-Content-Type-Options: nosniff
 ### Removed Hard-Coded Values
 
 **Before:**
-- Domain: vorlichmedia.com
-- Email: hendizzo@hotmail.com
-- IP: 176.27.30.170
+- Domain: example.com
+- Email: admin@example.com
+- IP: YOUR_PUBLIC_IP
 - Repository: guacamole-letsencrypt-docker
 - Branch: Multi-Region_With_FrontDoor
 

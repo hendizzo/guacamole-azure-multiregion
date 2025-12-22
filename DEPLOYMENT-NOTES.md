@@ -86,11 +86,12 @@ Correct sequence prevents errors:
 ### Working URLs
 After successful deployment:
 
-- **Custom Domain**: https://lab.vorlichmedia.com/guacamole/
-- **Front Door**: https://guacamole-global-fnafdpamcshdatbq.z03.azurefd.net/guacamole/
-- **UK South Direct**: https://paw.vorlichmedia.com/guacamole/
-- **East US Direct**: https://paw-us-e.vorlichmedia.com/guacamole/
-- **East Asia Direct**: https://paw-hk.vorlichmedia.com/guacamole/
+- **Custom Domain**: https://lab.example.com/guacamole/ (your configured custom domain)
+- **Front Door**: https://<endpoint-name>-<unique-id>.z03.azurefd.net/guacamole/
+- **Primary Region**: https://paw.example.com/guacamole/
+- **Secondary Regions**: https://paw-<region-code>.example.com/guacamole/
+
+Replace `example.com` with your actual domain configured during deployment.
 
 ### Default Credentials
 - **Username**: guacadmin

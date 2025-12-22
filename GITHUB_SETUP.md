@@ -51,7 +51,7 @@ nano docker-compose.yml
 
 # Change this:
 POSTGRES_PASSWORD: 'River!7-Cloud$9-Hawk@3-Stone#5'
-CERTBOT_EMAIL: hendizzo@hotmail.com
+CERTBOT_EMAIL: admin@example.com
 
 # To this:
 POSTGRES_PASSWORD: 'ChangeThisToASecurePassword123!'
