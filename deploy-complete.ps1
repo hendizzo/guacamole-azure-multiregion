@@ -223,21 +223,24 @@ if ($state.step -lt 2) {
         # Deploy VM using Bicep template
         $deploymentName = "vm-$($region.short.ToLower())-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
         
-        Write-Host "  Deploying Bicep template: infrastructure/bicep/guacamole-vm.bicep" -ForegroundColor Gray
+        Write-Host "  Deploying Bicep template: modules/region.bicep" -ForegroundColor Gray
         Write-Host "  Deployment name: $deploymentName" -ForegroundColor Gray
         Write-Host "  This will take 5-10 minutes..." -ForegroundColor Yellow
         
         $deployResult = az deployment group create `
             --resource-group $region.resourceGroup `
-            --template-file infrastructure/bicep/guacamole-vm.bicep `
+            --template-file modules/region.bicep `
             --parameters location="$($region.code)" `
-            --parameters regionCode="$($region.short)" `
-            --parameters vnetAddressSpace="$($region.vnetAddressSpace)" `
-            --parameters subnetAddressPrefix="$($region.subnetAddressPrefix)" `
-            --parameters sshPublicKey="$sshKey" `
-            --parameters sshSourceIp="$($state.myIP)" `
-            --parameters vmSize="Standard_B2s" `
+            --parameters shortName="$($region.short)" `
+            --parameters subdomain="$($region.subdomain)" `
+            --parameters domain="$($state.domain)" `
+            --parameters certbotEmail="$($state.email)" `
+            --parameters adminPublicKey="$sshKey" `
+            --parameters allowedSourceIP="$($state.myIP)/32" `
             --parameters adminUsername="pawadmin" `
+            --parameters vmSize="Standard_B2s" `
+            --parameters vnetAddressPrefix="$($region.vnetAddressSpace)" `
+            --parameters subnetAddressPrefix="$($region.subnetAddressPrefix)" `
             --name $deploymentName 2>&1
 
         # Log the output
