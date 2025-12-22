@@ -1,125 +1,165 @@
 #!/bin/bash
-# Guacamole Docker Installation Script
-# This script sets up Apache Guacamole with Docker Compose and Let's Encrypt SSL
-# Uses repository: https://github.com/hendizzo/guacamole-azure-multiregion.git
-
 set -e
 
-# Configuration
-DOMAIN="${1:-paw.example.com}"
-EMAIL="${2:-your-email@example.com}"
-REPO_URL="https://github.com/hendizzo/guacamole-azure-multiregion.git"
+# Parameters passed from Custom Script Extension
+DOMAIN=$1
+CERTBOT_EMAIL=$2
 
 echo "=========================================="
 echo "Guacamole Installation Script"
-echo "Domain: $DOMAIN"
-echo "Email: $EMAIL"
 echo "=========================================="
+echo "Domain: $DOMAIN"
+echo "Email: $CERTBOT_EMAIL"
+echo ""
 
 # Update system
 echo "Updating system packages..."
-sudo apt-get update
-sudo apt-get upgrade -y
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
-# Install Git
-echo "Installing Git..."
-sudo apt-get install -y git
+# Install required packages
+echo "Installing required packages..."
+apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    git \
+    nginx \
+    certbot \
+    python3-certbot-nginx
 
 # Install Docker
 echo "Installing Docker..."
-sudo apt-get install -y ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Add current user to docker group
-sudo usermod -aG docker $USER
-
-# Clone the repository
-echo "Cloning Guacamole repository..."
-cd ~
-if [ -d "guacamole-azure-multiregion" ]; then
-    echo "Repository already exists, updating..."
-    cd guacamole-azure-multiregion
-    git pull
-else
-    git clone ${REPO_URL}
-    cd guacamole-azure-multiregion
+if ! command -v docker &> /dev/null; then
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
+    systemctl enable docker
+    systemctl start docker
 fi
 
-# Run the prepare script
-echo "Running prepare script..."
-chmod +x prepare.sh
-./prepare.sh
+# Clone Guacamole repository
+echo "Cloning Guacamole repository..."
+cd /home/pawadmin
+if [ -d "guacamole-azure-multiregion" ]; then
+    rm -rf guacamole-azure-multiregion
+fi
+git clone https://github.com/hendizzo/guacamole-azure-multiregion.git
+cd guacamole-azure-multiregion
 
-# Update docker-compose.yml with email
-echo "Configuring Let's Encrypt email..."
-sed -i "s/CERTBOT_EMAIL: your-email@example.com/CERTBOT_EMAIL: ${EMAIL}/" docker-compose.yml
+# Create .env file
+echo "Creating environment configuration..."
+cat > .env <<EOF
+POSTGRES_USER=guacamole_user
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+POSTGRES_DB=guacamole_db
+GUACAMOLE_HOME=/etc/guacamole
+DOMAIN=$DOMAIN
+CERTBOT_EMAIL=$CERTBOT_EMAIL
+EOF
 
-# Update nginx configuration with domain
-echo "Configuring domain in nginx..."
-mkdir -p nginx/user_conf.d
-sed -i "s/your-domain\.com/${DOMAIN}/g" nginx/user_conf.d/guacamole.conf
+# Update docker-compose.yml with domain and email
+echo "Configuring Docker Compose..."
+sed -i "s/your-domain.com/${DOMAIN}/" docker-compose.yml
+sed -i "s/your-email@example.com/${CERTBOT_EMAIL}/" docker-compose.yml
 
-# Start services - nginx-certbot will automatically obtain SSL certificate
+# Initialize database
+echo "Initializing Guacamole database..."
+docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --postgresql > initdb.sql
+
+# Start services
 echo "Starting Guacamole services..."
-echo "The nginx-certbot container will automatically obtain SSL certificate..."
-echo "This process takes 2-3 minutes..."
 docker compose up -d
 
-# Wait for all services to initialize
+# Wait for services to be ready
 echo "Waiting for services to start..."
 sleep 30
 
-# Check container status
-echo "Checking service status..."
-docker compose ps
-
-# Wait for SSL certificate acquisition
-echo "Waiting for Let's Encrypt SSL certificate acquisition (up to 2 minutes)..."
-for i in {1..24}; do
-    if docker compose logs nginx 2>&1 | grep -q "Certificate obtained"; then
-        echo "SSL certificate obtained successfully!"
-        break
-    elif docker compose logs nginx 2>&1 | grep -q "Cert not yet due for renewal"; then
-        echo "SSL certificate already exists and is valid!"
+# Check if Guacamole is responding
+echo "Checking Guacamole status..."
+for i in {1..30}; do
+    if curl -s http://localhost:8080/guacamole/ | grep -q "Guacamole"; then
+        echo "✓ Guacamole is running"
         break
     fi
-    sleep 5
-    echo "Still waiting for SSL certificate... ($((i*5)) seconds)"
+    echo "Waiting for Guacamole to start... ($i/30)"
+    sleep 10
 done
 
-# Final status check
+# Configure Nginx
+echo "Configuring Nginx..."
+cat > /etc/nginx/sites-available/guacamole <<'NGINX_EOF'
+server {
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER;
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name DOMAIN_PLACEHOLDER;
+    
+    # SSL certificates will be added by certbot
+    
+    location /guacamole/ {
+        proxy_pass http://localhost:8080/guacamole/;
+        proxy_buffering off;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        proxy_cookie_path /guacamole/ /;
+        access_log off;
+    }
+}
+NGINX_EOF
+
+sed -i "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" /etc/nginx/sites-available/guacamole
+
+# Enable site
+ln -sf /etc/nginx/sites-available/guacamole /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+
+# Test Nginx configuration
+nginx -t
+
+# Restart Nginx
+systemctl restart nginx
+
+# Obtain SSL certificate
+echo "Obtaining SSL certificate from Let's Encrypt..."
+certbot --nginx \
+    -d $DOMAIN \
+    --non-interactive \
+    --agree-tos \
+    --email $CERTBOT_EMAIL \
+    --redirect
+
+# Setup automatic renewal
+echo "Setting up automatic certificate renewal..."
+systemctl enable certbot.timer
+systemctl start certbot.timer
+
+# Set correct permissions
+chown -R pawadmin:pawadmin /home/pawadmin/guacamole-azure-multiregion
+
 echo ""
-echo "Final service status:"
-docker compose ps
-
-# Show nginx logs for troubleshooting
+echo "=========================================="
+echo "✓ Installation Complete!"
+echo "=========================================="
+echo "Guacamole is now accessible at:"
+echo "  https://$DOMAIN/guacamole/"
 echo ""
-echo "Nginx/Certbot logs (last 20 lines):"
-docker compose logs --tail=20 nginx
-
-# Get the PostgreSQL password from prepare script output
-POSTGRES_PASSWORD=$(grep POSTGRES_PASSWORD .env 2>/dev/null | cut -d'=' -f2)
-
-echo "=========================================="
-echo "Installation complete!"
-echo "=========================================="
-echo "Guacamole URL: https://${DOMAIN}/guacamole/"
 echo "Default credentials:"
 echo "  Username: guacadmin"
 echo "  Password: guacadmin"
-echo ""
-echo "IMPORTANT: Change the default password immediately!"
-if [ ! -z "$POSTGRES_PASSWORD" ]; then
-    echo "PostgreSQL Password: ${POSTGRES_PASSWORD}"
-fi
+echo "  ⚠ CHANGE PASSWORD IMMEDIATELY!"
 echo "=========================================="
