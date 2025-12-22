@@ -1,3 +1,4 @@
+
 # Git repository files to ignore
 
 # Azure deployment outputs
@@ -47,3 +48,13 @@ certbot_var/
 tmp/
 temp/
 *.tmp
+
+# Deployment state and temporary files
+.deployment-state.json
+fix-*.ps1
+*-test.ps1
+apply-*.ps1
+effective-*.json
+*-params.json
+DEPLOYMENT_FIXES.txt
+EDIT-INSTRUCTIONS.txt
